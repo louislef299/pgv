@@ -1,4 +1,4 @@
-# pgvector-playground
+# pgv
 
 A small Zig CLI that demonstrates semantic search using pgvector and
 locally-generated embeddings.
@@ -19,10 +19,10 @@ locally-generated embeddings.
 
 ```sh
 # Seed the database with embeddings
-$ ./pgvector-playground seed
+$ ./pgv seed
 
 # Query for similar snippets
-$ ./pgvector-playground query "containerized web server with TLS"
+$ ./pgv query "containerized web server with TLS"
 1. "Dockerfile for a multi-stage Go build with minimal runtime image" (distance: 0.23)
 2. "Nginx reverse proxy config with Let's Encrypt SSL" (distance: 0.31)
 3. "Docker Compose stack with Traefik and automatic HTTPS" (distance: 0.35)
@@ -75,8 +75,8 @@ ollama pull nomic-embed-text
 
 ```sh
 zig build
-./zig-out/bin/pgvector-playground seed
-./zig-out/bin/pgvector-playground query "your search here"
+./zig-out/bin/pgv seed
+./zig-out/bin/pgv query "your search here"
 ```
 
 ## Implementation steps
