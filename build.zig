@@ -19,6 +19,9 @@ pub fn build(b: *std.Build) void {
     const yazap = b.dependency("yazap", .{});
     exe.root_module.addImport("yazap", yazap.module("yazap"));
 
+    const pg = b.dependency("pg", .{}).module("pg");
+    exe.root_module.addImport("pg", pg);
+
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
