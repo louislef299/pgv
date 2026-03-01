@@ -12,7 +12,7 @@ const std = @import("std");
 // monomorphized (compiled separately) for each flags struct that uses it.
 //
 // Only `--flag value` style is supported (no short flags, no `--flag=value`).
-pub fn parse(flags: anytype, args: []const []const u8) void {
+pub fn parse(flags: anytype, args: []const []const u8) !void {
     // Capture the concrete type of the dereferenced pointer (e.g. InitFlags).
     // This is needed so std.meta.fields can inspect its fields at comptime.
     const T = @TypeOf(flags.*);
@@ -41,6 +41,19 @@ pub fn parse(flags: anytype, args: []const []const u8) void {
                     i += 1;
                 }
             }
+        }
+    }
+}
+
+// Grab the nested description string for each flag and print it to the screen
+// TODO: actually implement the help trigger logic
+pub fn help(flags: anytype) void {
+    const T = @TypeOf(flags.*);
+
+    inline for (std.meta.fields(T)) |field| {
+        if (@hasDecl(T, "descriptions")) {
+            const desc = @field(T.descriptions, field.name);
+            std.debug.print("  --{s}\t{s}\n", .{ field.name, desc });
         }
     }
 }
