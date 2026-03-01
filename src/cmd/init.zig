@@ -15,14 +15,18 @@ pub fn run(allocator: std.mem.Allocator, args: []const []const u8) !void {
     }
 
     var pool = pg.Pool.init(allocator, .{
-        .size = 1,
+        .size = 3,
         .connect = .{ .host = target, .port = 5432 },
         .auth = .{ .username = "postgres", .password = "pgv", .database = "postgres" },
     }) catch |err| {
-        lib.log.err("Failed to connect: {}", .{err});
+        lib.log.err("Failed to connect to {s}: {}", .{ target, err });
         std.posix.exit(1);
     };
     defer pool.deinit();
 
-    std.debug.print("connected to {s}\n", .{target});
+    std.debug.print("connected to {s}!\n", .{target});
+
+    _ = try pool.exec("CREATE EXTENSION vector;", .{});
+    _ = try pool.exec("CREATE TABLE items (id bigserial PRIMARY KEY, embedding vector(3));", .{});
+    _ = try pool.exec("INSERT INTO items (embedding) VALUES ('[1,2,3]'), ('[4,5,6]');", .{});
 }
