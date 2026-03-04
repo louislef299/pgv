@@ -1,2 +1,2 @@
 const std = @import("std");
-pub const log = std.log.scoped(.pgv);
+pub const log = std.log.scoped(.ishi);

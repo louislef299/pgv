@@ -6,9 +6,9 @@ const init_cmd = @import("cmd/init.zig");
 const seed_cmd = @import("cmd/seed.zig");
 
 const usage =
-    \\pgv - pgvector CLI
+    \\ishi - git intelligence, from within
     \\
-    \\Usage: pgv <command> [options]
+    \\Usage: git ishi <command> [options]
     \\
     \\Commands:
     \\  init    Initialize the pg database with pgvector
@@ -20,7 +20,7 @@ const usage =
 const GlobalFlags = struct {
     target: []const u8 = "localhost",
     username: []const u8 = "postgres",
-    password: []const u8 = "pgv",
+    password: []const u8 = "ishi",
     database: []const u8 = "postgres",
 };
 

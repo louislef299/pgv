@@ -1,26 +1,26 @@
-# pgv
+# ishi
 
-A small Zig CLI that demonstrates semantic search using pgvector and
-locally-generated embeddings.
+The goal of ishi is to look within your git history to build understanding
+alongside you. It embeds your commits, learns what matters, and surfaces
+insights as you grow -- AI that lives within your workflow, not outside it.
 
-## What it does
+*ishi* means "within" in the [Black Speech of Mordor][] -- and that's where it
+lives. Within your git history, finding patterns across commits. Within your
+workflow, learning as you learn. The more you commit, the smarter it gets,
+turning your repository into a knowledge base that grows with you and your team.
 
-1. Takes ~20-30 hardcoded text snippets (descriptions of project types, tools,
-   patterns)
-2. Generates embeddings for each snippet using Ollama (`nomic-embed-text`)
-   running locally
-3. Stores the embeddings in a PostgreSQL table with the pgvector extension
-4. Accepts a natural language query, embeds it, and returns the most
-   semantically similar snippets
+Whether you store your embeddings locally across projects or isolate your
+embeddings to a specific project, each backend instance can be referenced by a
+model to quickly understand your programming style.
 
 ## Example
 
 ```sh
 # Seed the database with embeddings
-$ ./pgv seed
+$ git ishi seed
 
 # Query for similar snippets
-$ ./pgv query "containerized web server with TLS"
+$ git ishi query "containerized web server with TLS"
 1. "Dockerfile for a multi-stage Go build with minimal runtime image" (distance: 0.23)
 2. "Nginx reverse proxy config with Let's Encrypt SSL" (distance: 0.31)
 3. "Docker Compose stack with Traefik and automatic HTTPS" (distance: 0.35)
@@ -73,8 +73,8 @@ ollama pull nomic-embed-text
 
 ```sh
 zig build
-./zig-out/bin/pgv seed
-./zig-out/bin/pgv query "your search here"
+./zig-out/bin/ishi seed
+./zig-out/bin/ishi query "your search here"
 ```
 
 ## Implementation steps
@@ -154,3 +154,5 @@ SELECT * FROM snippets ORDER BY embedding <=> '[0.1, 0.2, ...]' LIMIT 5;
 -- Inner product (negate for max)
 SELECT * FROM snippets ORDER BY embedding <#> '[0.1, 0.2, ...]' LIMIT 5;
 ```
+
+[Black Speech of Mordor]: https://tolkiengateway.net/wiki/Black_Speech

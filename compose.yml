@@ -6,7 +6,7 @@ services:
     restart: always
     shm_size: 128mb
     environment:
-      POSTGRES_PASSWORD: pgv
+      POSTGRES_PASSWORD: ishi
     volumes:
     - ./data:/var/lib/postgresql
     ports:
