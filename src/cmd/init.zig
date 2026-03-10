@@ -3,9 +3,9 @@ const pg = @import("pg");
 const lib = @import("../lib/log.zig");
 const models = @import("../lib/models.zig");
 
-const root = @import("../main.zig");
+const Flags = @import("./Flags.zig");
 
-pub fn run(_: std.mem.Allocator, pool: *pg.Pool, f: root.Flags) !void {
+pub fn run(_: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     // Validate the model before running DDL.
     const model = models.find(f.model) orelse {
         lib.log.err("Unknown model '{s}'. Supported models:", .{f.model});

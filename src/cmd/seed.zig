@@ -4,7 +4,7 @@ const zul = @import("zul");
 
 const lib = @import("../lib/log.zig");
 const models = @import("../lib/models.zig");
-const root = @import("../main.zig");
+const Flags = @import("Flags.zig");
 
 const SeedEntry = struct {
     id: []const u8,
@@ -15,7 +15,7 @@ const OllamaResponse = struct {
     embedding: []f64,
 };
 
-pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: root.Flags) !void {
+pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     _ = models.find(f.model) orelse {
         lib.log.err("Unknown model '{s}'. Supported models:", .{f.model});
         for (models.ollama) |m| lib.log.err("  {s}", .{m.name});
