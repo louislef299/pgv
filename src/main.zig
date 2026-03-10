@@ -4,6 +4,7 @@ const pg = @import("pg");
 const Flags = @import("./cmd/Flags.zig");
 const init_cmd = @import("cmd/init.zig");
 const lib = @import("lib/log.zig");
+const query_cmd = @import("cmd/query.zig");
 const seed_cmd = @import("cmd/seed.zig");
 
 pub fn main() !void {
@@ -12,6 +13,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     const f = try Flags.init(allocator);
+    defer f.deinit();
 
     var pool = pg.Pool.init(allocator, .{
         .size = 1,
@@ -26,5 +28,6 @@ pub fn main() !void {
     switch (f.cmd) {
         .init => try init_cmd.run(allocator, pool, f),
         .seed => try seed_cmd.run(allocator, pool, f),
+        .query => try query_cmd.run(allocator, pool, f),
     }
 }

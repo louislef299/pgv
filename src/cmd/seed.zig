@@ -3,6 +3,7 @@ const pg = @import("pg");
 
 const log = @import("../lib/log.zig").log;
 const ollama = @import("../lib/ollama.zig");
+const pgvector = @import("../lib/pgvector.zig");
 const Flags = @import("Flags.zig");
 
 const SeedEntry = struct {
@@ -40,7 +41,7 @@ pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         defer allocator.free(embedding);
 
         // Format as a pgvector-compatible text string: "[0.1,0.2,...]"
-        const vec_str = try formatPgVector(allocator, embedding);
+        const vec_str = try pgvector.formatVector(allocator, embedding);
         defer allocator.free(vec_str);
 
         _ = try pool.exec(
@@ -49,18 +50,4 @@ pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         );
         std.debug.print("  seeded '{s}'\n", .{entry.id});
     }
-}
-
-/// Formats an embedding vector as a pgvector-compatible text string "[0.1,0.2,...]".
-/// Caller owns the returned slice.
-fn formatPgVector(allocator: std.mem.Allocator, embedding: []const f64) ![]u8 {
-    var vec: std.ArrayList(u8) = .empty;
-    errdefer vec.deinit(allocator);
-    try vec.append(allocator, '[');
-    for (embedding, 0..) |v, i| {
-        if (i > 0) try vec.append(allocator, ',');
-        try vec.writer(allocator).print("{d}", .{v});
-    }
-    try vec.append(allocator, ']');
-    return try vec.toOwnedSlice(allocator);
 }

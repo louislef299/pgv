@@ -11,6 +11,7 @@ const Flags = @This();
 pub const IshiCmd = enum {
     init,
     seed,
+    query,
 };
 
 cmd: IshiCmd,
@@ -20,16 +21,28 @@ password: []const u8,
 database: []const u8,
 model: Model,
 path: []const u8,
+query: []const u8,
+allocator: std.mem.Allocator,
+
+pub fn deinit(self: Flags) void {
+    self.allocator.free(self.target);
+    self.allocator.free(self.username);
+    self.allocator.free(self.password);
+    self.allocator.free(self.database);
+    self.allocator.free(self.path);
+    if (self.query.len > 0) self.allocator.free(self.query);
+}
 
 pub const help_flag = "help";
 pub const usage =
     \\ishi - pgvector storage for git intelligence
     \\
-    \\Usage: git ishi <command> [flags]
+    \\Usage: ishi <command> [flags] [args]
     \\
     \\Commands:
     \\  init    Initialize the pg database with pgvector
     \\  seed    Seed the pg database with embeddings
+    \\  query   Semantic search: ishi query "your question here"
     \\
     \\Flags:
     \\  --target      target pg connection (default: localhost)
@@ -62,12 +75,14 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
 
     return .{
         .cmd = cmd,
-        .target = args.get("target") orelse "localhost",
-        .username = args.get("username") orelse "postgres",
-        .password = args.get("password") orelse "ishi",
-        .database = args.get("database") orelse "postgres",
+        .target = try allocator.dupe(u8, args.get("target") orelse "localhost"),
+        .username = try allocator.dupe(u8, args.get("username") orelse "postgres"),
+        .password = try allocator.dupe(u8, args.get("password") orelse "ishi"),
+        .database = try allocator.dupe(u8, args.get("database") orelse "postgres"),
         .model = mod,
-        .path = args.get("path") orelse "./src/seed.json",
+        .path = try allocator.dupe(u8, args.get("path") orelse "./src/seed.json"),
+        .query = if (args.tail.len >= 2) try allocator.dupe(u8, args.tail[1]) else "",
+        .allocator = allocator,
     };
 }
 
