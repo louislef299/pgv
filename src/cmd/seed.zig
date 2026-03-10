@@ -4,6 +4,8 @@ const flags = @import("flags.zig");
 const lib = @import("../lib/log.zig");
 const models = @import("../lib/models.zig");
 
+const root = @import("../main.zig");
+
 const SeedEntry = struct {
     id: []const u8,
     text: []const u8,
@@ -16,23 +18,11 @@ const OllamaResponse = struct {
 const SeedFlags = struct {
     model: []const u8 = "nomic-embed-text",
     path: []const u8 = "./seed.json",
-
-    pub const summary = "Seeds the configured pgvector database with json data";
-    pub const descriptions = struct {
-        pub const model = "Ollama embedding model to generate embeddings with";
-        pub const path = "Path to the JSON seed file";
-    };
 };
 
 pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, args: []const []const u8) !void {
     var f = SeedFlags{};
-    _ = try flags.parse(.{
-        .usage = "seed",
-        .description =
-        \\Provide a path to a JSON configuration to seed the pgvector database
-        \\with embeddings. The JSON schema should be a list of { id, text }.
-        ,
-    }, &f, args);
+    flags.parseFlags(root.usage, &f, args);
 
     _ = models.find(f.model) orelse {
         lib.log.err("Unknown model '{s}'. Supported models:", .{f.model});

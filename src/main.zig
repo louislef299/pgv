@@ -13,7 +13,7 @@ const GlobalFlags = struct {
     database: []const u8 = "postgres",
 };
 
-const usage =
+pub const usage =
     \\ishi - pgvector storage for git intelligence
     \\
     \\Usage: git ishi <command> [options]
@@ -23,7 +23,12 @@ const usage =
     \\  seed    Seed the pg database with embeddings
     \\
     \\Flags:
-    \\
+    \\  --target      target pg connection (default: localhost)
+    \\  --username    pg username (default: postgres)
+    \\  --password    pg password (default: ishi)
+    \\  --database    pg database (default: postgres)
+    \\  --model       ollama embedding model (default: nomic-embed-text)
+    \\  --path        path to the JSON seed file (default: ./seed.json)
 ;
 
 pub fn main() !void {
@@ -35,14 +40,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
 
     var gf = GlobalFlags{};
-    const cmd = try flags.parse(.{
-        .description = "ishi - git intelligence, from within",
-        .usage = "git ishi <command> [options]",
-        .subcommands = &[_][]const u8{
-            "init    Initialize the pg database with pgvector",
-            "seed    Seed the pg database with embeddings",
-        },
-    }, &gf, args[0..]);
+    const cmd = try flags.parse(usage, &gf, args[0..]);
 
     var pool = pg.Pool.init(allocator, .{
         .size = 1,

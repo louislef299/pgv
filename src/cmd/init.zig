@@ -4,23 +4,18 @@ const flags = @import("flags.zig");
 const lib = @import("../lib/log.zig");
 const models = @import("../lib/models.zig");
 
+const root = @import("../main.zig");
+
 // InitFlags defines the supported CLI flags for the init command.
 // Each field name corresponds to a --flag name and its default value
 // is used when the flag is not provided by the caller.
 const InitFlags = struct {
     model: []const u8 = "nomic-embed-text",
-
-    pub const descriptions = struct {
-        pub const model = "Ollama embedding model to configure the vector column for";
-    };
 };
 
 pub fn run(_: std.mem.Allocator, pool: *pg.Pool, args: []const []const u8) !void {
     var f = InitFlags{};
-    _ = try flags.parse(.{
-        .usage = "init",
-        .description = "Setup the targeted pgvector database.",
-    }, &f, args);
+    flags.parseFlags(root.usage, &f, args);
 
     // Validate the model before running DDL.
     const model = models.find(f.model) orelse {

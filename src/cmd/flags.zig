@@ -2,14 +2,9 @@ const std = @import("std");
 
 const help_flag = "help";
 
-const IshiCmd = enum {
+pub const IshiCmd = enum {
     init,
     seed,
-};
-pub const Cmd = struct {
-    description: []const u8,
-    usage: []const u8,
-    subcommands: ?[]const []const u8 = null,
 };
 
 // parse populates a command's flags struct from a slice of CLI args.
@@ -24,15 +19,23 @@ pub const Cmd = struct {
 // monomorphized (compiled separately) for each flags struct that uses it.
 //
 // Only `--flag value` style is supported (no short flags, no `--flag=value`).
-pub fn parse(cmd: Cmd, flags: anytype, args: []const []const u8) !IshiCmd {
+pub fn parse(usage: []const u8, flags: anytype, args: []const []const u8) !IshiCmd {
     if (args.len < 2) {
-        try help(cmd, flags);
+        help(usage);
         std.posix.exit(1);
+    }
+
+    // Check for --help before attempting command dispatch so that
+    // `ishi --help` exits cleanly with code 0 instead of failing
+    // to match a command and exiting with code 1.
+    if (std.mem.eql(u8, args[1], "--help")) {
+        help(usage);
+        std.posix.exit(0);
     }
 
     // use tagged union to discover target command
     const tgt_cmd = std.meta.stringToEnum(IshiCmd, args[1]) orelse {
-        try help(cmd, flags);
+        help(usage);
         std.posix.exit(1);
     };
 
@@ -53,8 +56,8 @@ pub fn parse(cmd: Cmd, flags: anytype, args: []const []const u8) !IshiCmd {
 
         // any instance of the help flag should trigger the help usage.
         if (std.mem.eql(u8, name, help_flag)) {
-            try help(cmd, flags);
-            std.posix.exit(1);
+            help(usage);
+            std.posix.exit(0);
         }
 
         // `inline for` unrolls this loop at comptime over the struct's fields.
@@ -76,35 +79,36 @@ pub fn parse(cmd: Cmd, flags: anytype, args: []const []const u8) !IshiCmd {
     return tgt_cmd;
 }
 
-// Grab the nested description string for each flag and print it to the screen
-// TODO: actually implement the help trigger logic
-pub fn help(cmd: Cmd, flags: anytype) !void {
+// parseFlags populates a flags struct from CLI args without command dispatch.
+// Used by subcommands that only need flag parsing (no subcommand resolution).
+pub fn parseFlags(usage: []const u8, flags: anytype, args: []const []const u8) void {
     const T = @TypeOf(flags.*);
 
-    const usage =
-        \\{s}
-        \\
-        \\Usage: {s}
-        \\
-        \\Commands:
-        \\
-    ;
-    std.debug.print(usage, .{ cmd.description, cmd.usage });
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
 
-    for (cmd.subcommands orelse &.{}) |sub| {
-        std.debug.print("  {s}\n", .{sub});
-    }
+        const name = if (std.mem.startsWith(u8, arg, "--"))
+            arg[2..]
+        else
+            continue;
 
-    var flagHeaderPrinted = false;
-    inline for (std.meta.fields(T)) |field| {
-        if (@hasDecl(T, "descriptions")) {
-            if (!flagHeaderPrinted) {
-                std.debug.print("Flags:", .{});
-                flagHeaderPrinted = true;
+        if (std.mem.eql(u8, name, help_flag)) {
+            help(usage);
+            std.posix.exit(0);
+        }
+
+        inline for (std.meta.fields(T)) |field| {
+            if (std.mem.eql(u8, name, field.name)) {
+                if (i + 1 < args.len) {
+                    @field(flags.*, field.name) = args[i + 1];
+                    i += 1;
+                }
             }
-
-            const desc = @field(T.descriptions, field.name);
-            std.debug.print("  --{s}\t{s}\n", .{ field.name, desc });
         }
     }
+}
+
+fn help(usage: []const u8) void {
+    std.debug.print("{s}\n", .{usage});
 }
