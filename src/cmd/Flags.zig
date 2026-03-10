@@ -2,6 +2,10 @@
 const std = @import("std");
 const zul = @import("zul");
 
+const log = @import("../lib/log.zig").log;
+const models = @import("../lib/models.zig");
+const Model = @import("../lib/models.zig").Model;
+
 const Flags = @This();
 
 pub const IshiCmd = enum {
@@ -14,7 +18,7 @@ target: []const u8,
 username: []const u8,
 password: []const u8,
 database: []const u8,
-model: []const u8,
+model: Model,
 path: []const u8,
 
 pub const help_flag = "help";
@@ -48,13 +52,21 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         std.posix.exit(0);
     }
 
+    // Validate the model before running DDL.
+    const model_name = args.get("model") orelse "nomic-embed-text";
+    const mod = models.find(model_name) orelse {
+        log.err("Unknown model '{s}'. Supported models:", .{model_name});
+        for (models.models) |m| log.err("  {s}", .{m.name});
+        std.posix.exit(1);
+    };
+
     return .{
         .cmd = cmd,
         .target = args.get("target") orelse "localhost",
         .username = args.get("username") orelse "postgres",
         .password = args.get("password") orelse "ishi",
         .database = args.get("database") orelse "postgres",
-        .model = args.get("model") orelse "nomic-embed-text",
+        .model = mod,
         .path = args.get("path") orelse "./src/seed.json",
     };
 }
