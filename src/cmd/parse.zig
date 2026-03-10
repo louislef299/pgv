@@ -1,6 +1,5 @@
 const std = @import("std");
-
-const help_flag = "help";
+const help = @import("./help.zig");
 
 pub const IshiCmd = enum {
     init,
@@ -19,9 +18,9 @@ pub const IshiCmd = enum {
 // monomorphized (compiled separately) for each flags struct that uses it.
 //
 // Only `--flag value` style is supported (no short flags, no `--flag=value`).
-pub fn parse(usage: []const u8, flags: anytype, args: []const []const u8) !IshiCmd {
+pub fn parse(flags: anytype, args: []const []const u8) !IshiCmd {
     if (args.len < 2) {
-        help(usage);
+        help.help();
         std.posix.exit(1);
     }
 
@@ -29,13 +28,13 @@ pub fn parse(usage: []const u8, flags: anytype, args: []const []const u8) !IshiC
     // `ishi --help` exits cleanly with code 0 instead of failing
     // to match a command and exiting with code 1.
     if (std.mem.eql(u8, args[1], "--help")) {
-        help(usage);
+        help.help();
         std.posix.exit(0);
     }
 
     // use tagged union to discover target command
     const tgt_cmd = std.meta.stringToEnum(IshiCmd, args[1]) orelse {
-        help(usage);
+        help.help();
         std.posix.exit(1);
     };
 
@@ -55,8 +54,8 @@ pub fn parse(usage: []const u8, flags: anytype, args: []const []const u8) !IshiC
             continue;
 
         // any instance of the help flag should trigger the help usage.
-        if (std.mem.eql(u8, name, help_flag)) {
-            help(usage);
+        if (std.mem.eql(u8, name, help.help_flag)) {
+            help.help();
             std.posix.exit(0);
         }
 
@@ -77,8 +76,4 @@ pub fn parse(usage: []const u8, flags: anytype, args: []const []const u8) !IshiC
     }
 
     return tgt_cmd;
-}
-
-fn help(usage: []const u8) void {
-    std.debug.print("{s}\n", .{usage});
 }

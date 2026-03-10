@@ -1,6 +1,6 @@
 const std = @import("std");
 const pg = @import("pg");
-const flags = @import("cmd/flags.zig");
+const parse = @import("cmd/parse.zig");
 const lib = @import("lib/log.zig");
 const init_cmd = @import("cmd/init.zig");
 const seed_cmd = @import("cmd/seed.zig");
@@ -15,24 +15,6 @@ pub const Flags = struct {
     path: []const u8 = "./seed.json",
 };
 
-pub const usage =
-    \\ishi - pgvector storage for git intelligence
-    \\
-    \\Usage: git ishi <command> [flags]
-    \\
-    \\Commands:
-    \\  init    Initialize the pg database with pgvector
-    \\  seed    Seed the pg database with embeddings
-    \\
-    \\Flags:
-    \\  --target      target pg connection (default: localhost)
-    \\  --username    pg username (default: postgres)
-    \\  --password    pg password (default: ishi)
-    \\  --database    pg database (default: postgres)
-    \\  --model       ollama embedding model (default: nomic-embed-text)
-    \\  --path        path to the JSON seed file (default: ./seed.json)
-;
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
@@ -42,7 +24,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
 
     var f = Flags{};
-    const cmd = try flags.parse(usage, &f, args[0..]);
+    const cmd = try parse.parse(&f, args[0..]);
 
     var pool = pg.Pool.init(allocator, .{
         .size = 1,
