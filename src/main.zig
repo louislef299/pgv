@@ -16,10 +16,17 @@ const std = @import("std");
 const pg = @import("pg");
 
 const Flags = @import("./cmd/Flags.zig");
+const git = @import("lib/git.zig");
 const init_cmd = @import("cmd/init.zig");
 const lib = @import("lib/log.zig");
 const query_cmd = @import("cmd/query.zig");
 const seed_cmd = @import("cmd/seed.zig");
+
+// Force the test runner to discover tests in transitively-imported modules.
+test {
+    @import("std").testing.refAllDecls(@This());
+    _ = git;
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
