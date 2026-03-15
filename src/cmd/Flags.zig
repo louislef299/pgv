@@ -22,6 +22,8 @@ database: []const u8,
 model: Model,
 path: []const u8,
 query: []const u8,
+git: bool,
+limit: usize,
 allocator: std.mem.Allocator,
 
 pub fn deinit(self: Flags) void {
@@ -51,6 +53,8 @@ pub const usage =
     \\  --database    pg database (default: postgres)
     \\  --model       ollama embedding model (default: nomic-embed-text)
     \\  --path        path to the JSON seed file (default: ./seed.json)
+    \\  --git         seed from git commit history instead of JSON
+    \\  --limit       max commits to ingest with --git (default: 50)
 ;
 
 pub fn init(allocator: std.mem.Allocator) !Flags {
@@ -73,6 +77,12 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         std.posix.exit(1);
     };
 
+    const limit_str = args.get("limit") orelse "50";
+    const limit = std.fmt.parseInt(usize, limit_str, 10) catch {
+        log.err("Invalid --limit value '{s}'", .{limit_str});
+        std.posix.exit(1);
+    };
+
     return .{
         .cmd = cmd,
         .target = try allocator.dupe(u8, args.get("target") orelse "localhost"),
@@ -82,6 +92,8 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         .model = mod,
         .path = try allocator.dupe(u8, args.get("path") orelse "./src/seed.json"),
         .query = if (args.tail.len >= 2) try allocator.dupe(u8, args.tail[1]) else "",
+        .git = args.contains("git"),
+        .limit = limit,
         .allocator = allocator,
     };
 }

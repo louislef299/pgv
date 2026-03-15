@@ -2,6 +2,7 @@ const std = @import("std");
 const pg = @import("pg");
 
 const log = @import("../lib/log.zig").log;
+const git = @import("../lib/git.zig");
 const ollama = @import("../lib/ollama.zig");
 const pgvector = @import("../lib/pgvector.zig");
 const Flags = @import("Flags.zig");
@@ -12,6 +13,52 @@ const SeedEntry = struct {
 };
 
 pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
+    if (f.git) {
+        try seedFromGit(allocator, pool, f);
+    } else {
+        try seedFromJson(allocator, pool, f);
+    }
+}
+
+fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
+    std.debug.print("Walking up to {d} commits...\n", .{f.limit});
+
+    const commits = git.walkCommits(allocator, ".", f.limit) catch |err| {
+        log.err("Failed to walk git history: {}", .{err});
+        std.posix.exit(1);
+    };
+    defer {
+        for (commits) |*ci| {
+            @constCast(ci).deinit();
+        }
+        allocator.free(commits);
+    }
+
+    std.debug.print("Found {d} commits, seeding...\n", .{commits.len});
+
+    for (commits) |ci| {
+        const sha_str = &ci.sha;
+        std.debug.print("embedding {s}...\n", .{sha_str});
+
+        // Combine commit message and diff patch for embedding.
+        const content = try std.fmt.allocPrint(allocator, "{s}\n\n{s}", .{ ci.message, ci.diff_patch });
+        defer allocator.free(content);
+
+        const embedding = try ollama.getEmbedding(allocator, f.model.name, content);
+        defer allocator.free(embedding);
+
+        const vec_str = try pgvector.formatVector(allocator, embedding);
+        defer allocator.free(vec_str);
+
+        _ = try pool.exec(
+            "INSERT INTO items (content, embedding) VALUES ($1, $2::vector)",
+            .{ content, vec_str },
+        );
+        std.debug.print("  seeded {s}\n", .{sha_str});
+    }
+}
+
+fn seedFromJson(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     // Read the seed file from disk.
     const seed_data = std.fs.cwd().readFileAlloc(
         allocator,

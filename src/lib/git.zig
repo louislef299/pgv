@@ -42,36 +42,17 @@ fn dupeString(allocator: std.mem.Allocator, c_str: ?[*:0]const u8) ![]const u8 {
     return allocator.dupe(u8, std.mem.span(s));
 }
 
-pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !CommitInfo {
-    // 4a. https://github.com/libgit2/libgit2?tab=readme-ov-file#initialization
-    _ = lg2.git_libgit2_init();
-    defer _ = lg2.git_libgit2_shutdown();
-
-    // 4b. https://libgit2.org/docs/reference/main/repository/git_repository_open.html
-    var repo: ?*lg2.git_repository = null;
-    try check(lg2.git_repository_open(&repo, repo_path));
-    defer lg2.git_repository_free(repo);
-
-    // 4c. https://libgit2.org/docs/reference/main/oid/git_oid_fromstr.html
-    var oid: lg2.git_oid = undefined;
-    try check(lg2.git_reference_name_to_id(&oid, repo, "HEAD"));
-
-    // 4d. https://libgit2.org/docs/reference/main/commit/git_commit_lookup.html
-    var commit: ?*lg2.git_commit = null;
-    try check(lg2.git_commit_lookup(&commit, repo, &oid));
-    defer lg2.git_commit_free(commit);
-
-    // 4e. Extract commit metadata
-    // https://libgit2.org/docs/reference/main/oid/git_oid_tostr_s.html
+/// Extract a CommitInfo from a resolved commit object and its OID.
+/// The repo handle is needed for diffing. Caller owns the returned CommitInfo.
+fn readCommit(allocator: std.mem.Allocator, repo: ?*lg2.git_repository, oid: *const lg2.git_oid, commit: ?*lg2.git_commit) !CommitInfo {
     var sha: [40]u8 = undefined;
-    const sha_str = lg2.git_oid_tostr_s(&oid);
+    const sha_str = lg2.git_oid_tostr_s(oid);
     if (sha_str) |s| {
         @memcpy(&sha, s[0..40]);
     } else {
         @memset(&sha, '0');
     }
 
-    // https://libgit2.org/docs/reference/main/commit/git_commit_author.html
     const author = lg2.git_commit_author(commit);
     const author_name = try dupeString(allocator, if (author) |a| a.*.name else null);
     errdefer allocator.free(author_name);
@@ -81,7 +62,6 @@ pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !C
 
     const author_date: i64 = if (author) |a| a.*.when.time else 0;
 
-    // https://libgit2.org/docs/reference/main/commit/git_commit_committer.html
     const committer = lg2.git_commit_committer(commit);
     const committer_name = try dupeString(allocator, if (committer) |c| c.*.name else null);
     errdefer allocator.free(committer_name);
@@ -91,17 +71,13 @@ pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !C
 
     const committer_date: i64 = if (committer) |c| c.*.when.time else 0;
 
-    // https://libgit2.org/docs/reference/main/commit/git_commit_message.html
     const message = try dupeString(allocator, lg2.git_commit_message(commit));
     errdefer allocator.free(message);
 
-    // 4f. https://libgit2.org/docs/reference/main/commit/git_commit_tree.html
     var tree: ?*lg2.git_tree = null;
     try check(lg2.git_commit_tree(&tree, commit));
     defer lg2.git_tree_free(tree);
 
-    // 4g. https://libgit2.org/docs/reference/main/commit/git_commit_parentcount.html
-    // https://libgit2.org/docs/reference/main/commit/git_commit_parent.html
     var parent_tree: ?*lg2.git_tree = null;
     if (lg2.git_commit_parentcount(commit) > 0) {
         var parent: ?*lg2.git_commit = null;
@@ -111,27 +87,20 @@ pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !C
     }
     defer if (parent_tree) |pt| lg2.git_tree_free(pt);
 
-    // 4h. https://libgit2.org/docs/reference/main/diff/git_diff_tree_to_tree.html
     var diff: ?*lg2.git_diff = null;
     try check(lg2.git_diff_tree_to_tree(&diff, repo, parent_tree, tree, null));
     defer lg2.git_diff_free(diff);
 
-    // 4i. https://libgit2.org/docs/reference/main/diff/git_diff_get_stats.html
     var stats: ?*lg2.git_diff_stats = null;
     try check(lg2.git_diff_get_stats(&stats, diff));
     defer lg2.git_diff_stats_free(stats);
 
-    // https://libgit2.org/docs/reference/main/diff/git_diff_stats_files_changed.html
     const files_changed = lg2.git_diff_stats_files_changed(stats);
-    // https://libgit2.org/docs/reference/main/diff/git_diff_stats_insertions.html
     const insertions = lg2.git_diff_stats_insertions(stats);
-    // https://libgit2.org/docs/reference/main/diff/git_diff_stats_deletions.html
     const deletions = lg2.git_diff_stats_deletions(stats);
 
-    // 4j. https://libgit2.org/docs/reference/main/diff/git_diff_to_buf.html
     var diff_buf: lg2.git_buf = .{ .ptr = null, .reserved = 0, .size = 0 };
     try check(lg2.git_diff_to_buf(&diff_buf, diff, lg2.GIT_DIFF_FORMAT_PATCH));
-    // https://libgit2.org/docs/reference/main/buffer/git_buf_dispose.html
     defer lg2.git_buf_dispose(&diff_buf);
 
     const diff_patch = if (diff_buf.ptr) |ptr|
@@ -140,7 +109,6 @@ pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !C
         try allocator.dupe(u8, "");
     errdefer allocator.free(diff_patch);
 
-    // 4k. Populate and return CommitInfo
     return CommitInfo{
         .sha = sha,
         .author_name = author_name,
@@ -156,6 +124,62 @@ pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !C
         .deletions = deletions,
         .allocator = allocator,
     };
+}
+
+pub fn readHeadCommit(allocator: std.mem.Allocator, repo_path: [*:0]const u8) !CommitInfo {
+    _ = lg2.git_libgit2_init();
+    defer _ = lg2.git_libgit2_shutdown();
+
+    var repo: ?*lg2.git_repository = null;
+    try check(lg2.git_repository_open(&repo, repo_path));
+    defer lg2.git_repository_free(repo);
+
+    var oid: lg2.git_oid = undefined;
+    try check(lg2.git_reference_name_to_id(&oid, repo, "HEAD"));
+
+    var commit: ?*lg2.git_commit = null;
+    try check(lg2.git_commit_lookup(&commit, repo, &oid));
+    defer lg2.git_commit_free(commit);
+
+    return readCommit(allocator, repo, &oid, commit);
+}
+
+/// Walk up to `max_commits` commits from HEAD and return their metadata.
+/// Caller owns the returned slice and each CommitInfo within it.
+pub fn walkCommits(allocator: std.mem.Allocator, repo_path: [*:0]const u8, max_commits: usize) ![]CommitInfo {
+    _ = lg2.git_libgit2_init();
+    defer _ = lg2.git_libgit2_shutdown();
+
+    var repo: ?*lg2.git_repository = null;
+    try check(lg2.git_repository_open(&repo, repo_path));
+    defer lg2.git_repository_free(repo);
+
+    var walker: ?*lg2.git_revwalk = null;
+    try check(lg2.git_revwalk_new(&walker, repo));
+    defer lg2.git_revwalk_free(walker);
+
+    _ = lg2.git_revwalk_sorting(walker, lg2.GIT_SORT_TIME);
+    try check(lg2.git_revwalk_push_head(walker));
+
+    var commits: std.ArrayList(CommitInfo) = .empty;
+    errdefer {
+        for (commits.items) |*ci| ci.deinit();
+        commits.deinit(allocator);
+    }
+
+    var oid: lg2.git_oid = undefined;
+    while (commits.items.len < max_commits) {
+        if (lg2.git_revwalk_next(&oid, walker) < 0) break;
+
+        var commit: ?*lg2.git_commit = null;
+        try check(lg2.git_commit_lookup(&commit, repo, &oid));
+        defer lg2.git_commit_free(commit);
+
+        const info = try readCommit(allocator, repo, &oid, commit);
+        try commits.append(allocator, info);
+    }
+
+    return commits.toOwnedSlice(allocator);
 }
 
 test "readHeadCommit returns valid data for current repo" {
@@ -192,5 +216,30 @@ test "readHeadCommit returns valid data for current repo" {
     std.debug.print("insertions:     {d}\n", .{info.insertions});
     std.debug.print("deletions:      {d}\n", .{info.deletions});
     std.debug.print("diff_patch len: {d} bytes\n", .{info.diff_patch.len});
+    std.debug.print("--- end ---\n", .{});
+}
+
+test "walkCommits returns multiple commits" {
+    const allocator = std.testing.allocator;
+    const commits = try walkCommits(allocator, ".", 5);
+    defer {
+        for (commits) |*ci| {
+            @constCast(ci).deinit();
+        }
+        allocator.free(commits);
+    }
+
+    // This repo has multiple commits
+    try std.testing.expect(commits.len > 1);
+
+    // First commit should be the most recent (same as HEAD)
+    var head = try readHeadCommit(allocator, ".");
+    defer head.deinit();
+    try std.testing.expectEqualSlices(u8, &head.sha, &commits[0].sha);
+
+    std.debug.print("\n--- walkCommits test ({d} commits) ---\n", .{commits.len});
+    for (commits, 0..) |ci, i| {
+        std.debug.print("[{d}] {s} {s}\n", .{ i, &ci.sha, ci.message[0..@min(ci.message.len, 60)] });
+    }
     std.debug.print("--- end ---\n", .{});
 }
