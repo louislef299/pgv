@@ -14,12 +14,12 @@ pub fn getEmbedding(
     model_name: []const u8,
     text: []const u8,
 ) ![]f64 {
-    // Build the JSON request body for Ollama.
-    const body = try std.fmt.allocPrint(
+    // Build the JSON request body for Ollama with proper escaping.
+    const Payload = struct { model: []const u8, prompt: []const u8 };
+    const body = try std.json.Stringify.valueAlloc(
         allocator,
-        \\{{"model":"{s}","prompt":"{s}"}}
-    ,
-        .{ model_name, text },
+        Payload{ .model = model_name, .prompt = text },
+        .{},
     );
     defer allocator.free(body);
 

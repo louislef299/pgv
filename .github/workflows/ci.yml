@@ -1,0 +1,26 @@
+---
+name: CI
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - uses: mlugg/setup-zig@v2
+      with:
+        version: 0.15.2
+    - name: Install dependencies
+      run: sudo apt-get install -y build-essential libgit2-dev
+    - name: Build
+      run: zig build --summary all
+    - name: Test
+      run: zig build test --summary all
+    - name: Format check
+      run: zig fmt --check .

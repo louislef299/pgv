@@ -1,6 +1,5 @@
 // Flags defines all CLI flags shared across commands.
 const std = @import("std");
-const zul = @import("zul");
 
 const log = @import("../lib/log.zig").log;
 const models = @import("../lib/models.zig");
@@ -22,6 +21,8 @@ database: []const u8,
 model: Model,
 path: []const u8,
 query: []const u8,
+git: bool,
+limit: usize,
 allocator: std.mem.Allocator,
 
 pub fn deinit(self: Flags) void {
@@ -51,58 +52,11 @@ pub const usage =
     \\  --database    pg database (default: postgres)
     \\  --model       ollama embedding model (default: nomic-embed-text)
     \\  --path        path to the JSON seed file (default: ./seed.json)
+    \\  --git         seed from git commit history instead of JSON
+    \\  --limit       max commits to ingest with --git (default: 50)
 ;
 
 pub fn init(allocator: std.mem.Allocator) !Flags {
-    const cmd = try parse(allocator);
-
-    // https://www.goblgobl.com/zul/command_line_args/
-    var args = try zul.CommandLineArgs.parse(allocator);
-    defer args.deinit();
-
-    if (args.contains(help_flag)) {
-        help();
-        std.posix.exit(0);
-    }
-
-    // Validate the model before running DDL.
-    const model_name = args.get("model") orelse "nomic-embed-text";
-    const mod = models.find(model_name) orelse {
-        log.err("Unknown model '{s}'. Supported models:", .{model_name});
-        for (models.models) |m| log.err("  {s}", .{m.name});
-        std.posix.exit(1);
-    };
-
-    return .{
-        .cmd = cmd,
-        .target = try allocator.dupe(u8, args.get("target") orelse "localhost"),
-        .username = try allocator.dupe(u8, args.get("username") orelse "postgres"),
-        .password = try allocator.dupe(u8, args.get("password") orelse "ishi"),
-        .database = try allocator.dupe(u8, args.get("database") orelse "postgres"),
-        .model = mod,
-        .path = try allocator.dupe(u8, args.get("path") orelse "./src/seed.json"),
-        .query = if (args.tail.len >= 2) try allocator.dupe(u8, args.tail[1]) else "",
-        .allocator = allocator,
-    };
-}
-
-pub fn help() void {
-    std.debug.print("{s}\n", .{usage});
-}
-
-// parse populates a command's flags struct from a slice of CLI args.
-//
-// `flags` is a pointer to any struct whose fields represent the supported
-// flags for that command (e.g. `*InitFlags`). Field names map directly to
-// flag names, and field default values serve as the defaults — no separate
-// registry needed.
-//
-// `anytype` is Zig's way of accepting a generic pointer at comptime. The
-// actual type is resolved at the call site, so this function is effectively
-// monomorphized (compiled separately) for each flags struct that uses it.
-//
-// Only `--flag value` style is supported (no short flags, no `--flag=value`).
-pub fn parse(allocator: std.mem.Allocator) !IshiCmd {
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
@@ -111,18 +65,88 @@ pub fn parse(allocator: std.mem.Allocator) !IshiCmd {
         std.posix.exit(1);
     }
 
-    // Check for --help before attempting command dispatch so that
-    // `ishi --help` exits cleanly with code 0 instead of failing
-    // to match a command and exiting with code 1.
     if (std.mem.eql(u8, args[1], "--help")) {
         help();
         std.posix.exit(0);
     }
 
-    // use tagged union to discover target command
-    const tgt_cmd = std.meta.stringToEnum(IshiCmd, args[1]) orelse {
+    const cmd = std.meta.stringToEnum(IshiCmd, args[1]) orelse {
         help();
         std.posix.exit(1);
     };
-    return tgt_cmd;
+
+    // Parse --key value pairs and boolean flags from args[2..]
+    var target: []const u8 = "localhost";
+    var username: []const u8 = "postgres";
+    var password: []const u8 = "ishi";
+    var database: []const u8 = "postgres";
+    var model_name: []const u8 = "nomic-embed-text";
+    var path: []const u8 = "./src/seed.json";
+    var query: []const u8 = "";
+    var git = false;
+    var limit: usize = 50;
+
+    var i: usize = 2;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--help")) {
+            help();
+            std.posix.exit(0);
+        } else if (std.mem.eql(u8, arg, "--git")) {
+            git = true;
+        } else if (std.mem.eql(u8, arg, "--target")) {
+            i += 1;
+            target = if (i < args.len) args[i] else target;
+        } else if (std.mem.eql(u8, arg, "--username")) {
+            i += 1;
+            username = if (i < args.len) args[i] else username;
+        } else if (std.mem.eql(u8, arg, "--password")) {
+            i += 1;
+            password = if (i < args.len) args[i] else password;
+        } else if (std.mem.eql(u8, arg, "--database")) {
+            i += 1;
+            database = if (i < args.len) args[i] else database;
+        } else if (std.mem.eql(u8, arg, "--model")) {
+            i += 1;
+            model_name = if (i < args.len) args[i] else model_name;
+        } else if (std.mem.eql(u8, arg, "--path")) {
+            i += 1;
+            path = if (i < args.len) args[i] else path;
+        } else if (std.mem.eql(u8, arg, "--limit")) {
+            i += 1;
+            if (i < args.len) {
+                limit = std.fmt.parseInt(usize, args[i], 10) catch {
+                    log.err("Invalid --limit value '{s}'", .{args[i]});
+                    std.posix.exit(1);
+                };
+            }
+        } else {
+            // Positional arg (e.g. query string)
+            query = arg;
+        }
+    }
+
+    const mod = models.find(model_name) orelse {
+        log.err("Unknown model '{s}'. Supported models:", .{model_name});
+        for (models.models) |m| log.err("  {s}", .{m.name});
+        std.posix.exit(1);
+    };
+
+    return .{
+        .cmd = cmd,
+        .target = try allocator.dupe(u8, target),
+        .username = try allocator.dupe(u8, username),
+        .password = try allocator.dupe(u8, password),
+        .database = try allocator.dupe(u8, database),
+        .model = mod,
+        .path = try allocator.dupe(u8, path),
+        .query = if (query.len > 0) try allocator.dupe(u8, query) else "",
+        .git = git,
+        .limit = limit,
+        .allocator = allocator,
+    };
+}
+
+pub fn help() void {
+    std.debug.print("{s}\n", .{usage});
 }
