@@ -8,9 +8,8 @@ search. The more you commit, the smarter it gets.
 ## Prerequisites
 
 - Zig (0.15.2)
-- Docker / Docker Compose
-- Ollama with an embedding model pulled (`nomic-embed-text`,
-  `mxbai-embed-large`, etc.)
+- Docker Desktop (with [Model Runner][] enabled)
+- (Optional) Ollama — alternative model runner (`--runner ollama`)
 - (Optional) `psql`
 
 To install the dependencies with [`brew`][] leveraging the `Brewfile`, run a
@@ -20,8 +19,7 @@ and `brew bundle install -v` to install all the dependencies.
 ## Setup
 
 ```sh
-docker compose up -d
-ollama pull nomic-embed-text
+docker compose up -d   # starts pgvector + pulls the embedding model
 zig build
 ```
 
@@ -34,10 +32,18 @@ zig build
 ./zig-out/bin/ishi --help
 ```
 
-## Ollama Model
+## Ollama (alternative runner)
 
-ishi ships with a [Modelfile][] that creates a local LLM tuned for answering
-questions about your codebase using context from the vector database.
+ishi defaults to [Docker Model Runner][Model Runner] for embeddings. To use
+Ollama instead, pass `--runner ollama` and pull the model yourself:
+
+```sh
+ollama pull nomic-embed-text
+./zig-out/bin/ishi seed --runner ollama --model nomic-embed-text --git
+```
+
+ishi also ships with a [Modelfile][] that creates a local LLM tuned for
+answering questions about your codebase using context from the vector database.
 
 ```sh
 ollama create ishi -f ./Modelfile
@@ -53,4 +59,5 @@ ollama run ishi
 
 [Black Speech of Mordor]: https://tolkiengateway.net/wiki/Black_Speech
 [`brew`]: http://louislefebvre.net/tech/brew-tips/#reproducibility-with-brewfile
+[Model Runner]: https://docs.docker.com/desktop/features/model-runner/
 [Modelfile]: https://docs.ollama.com/modelfile
