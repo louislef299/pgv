@@ -56,11 +56,11 @@ pub const usage =
     \\  --username    pg username (default: postgres)
     \\  --password    pg password (default: ishi)
     \\  --database    pg database (default: postgres)
-    \\  --model       ollama embedding model (default: nomic-embed-text)
+    \\  --model       ollama embedding model (default: ai/nomic-embed-text-v1.5)
     \\  --path        path to the JSON seed file (default: ./seed.json)
     \\  --git         seed from git commit history instead of JSON
     \\  --limit       max commits to ingest with --git (default: 50)
-    \\  --runner      local model runner to use (default: ollama)
+    \\  --runner      local model runner to use (default: docker)
 ;
 
 pub fn init(allocator: std.mem.Allocator) !Flags {
@@ -87,12 +87,12 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
     var username: []const u8 = "postgres";
     var password: []const u8 = "ishi";
     var database: []const u8 = "postgres";
-    var model_name: []const u8 = "nomic-embed-text";
+    var model_name: []const u8 = "ai/nomic-embed-text-v1.5";
     var path: []const u8 = "./src/seed.json";
     var query: []const u8 = "";
     var git = false;
     var limit: usize = 50;
-    var runner: Runner = Runner.ollama;
+    var runner: Runner = Runner.docker;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {

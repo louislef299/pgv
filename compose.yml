@@ -11,15 +11,12 @@ services:
     - pgv:/var/lib/postgresql
     ports:
     - 5432:5432
+    models:
+    - embedding-model
 
-  ollama:
-    container_name: ollama
-    image: ollama/ollama
-    volumes:
-    - ollama:/root/.ollama
-    ports:
-    - 11434:11434
+models:
+  embedding-model:
+    model: ai/nomic-embed-text-v1.5
 
 volumes:
-  ollama:
   pgv:

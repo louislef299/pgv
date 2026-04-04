@@ -11,6 +11,7 @@ pub const models = [_]Model{
     .{ .name = "nomic-embed-text", .dims = 768 },
     .{ .name = "mxbai-embed-large", .dims = 1024 },
     .{ .name = "all-minilm", .dims = 384 },
+    .{ .name = "ai/nomic-embed-text-v1.5", .dims = 768 },
 };
 
 /// Returns the model matching `name`, or null if not found.
