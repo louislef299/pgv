@@ -4,6 +4,7 @@ const std = @import("std");
 const log = @import("../lib/log.zig").log;
 const models = @import("../lib/models.zig");
 const Model = @import("../lib/models.zig").Model;
+const runner_mod = @import("../lib/runner.zig");
 
 const Flags = @This();
 
@@ -36,6 +37,7 @@ pub fn deinit(self: Flags) void {
     self.allocator.free(self.username);
     self.allocator.free(self.password);
     self.allocator.free(self.database);
+    self.allocator.free(self.model.name);
     self.allocator.free(self.path);
     if (self.query.len > 0) self.allocator.free(self.query);
 }
@@ -142,10 +144,31 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         }
     }
 
-    const mod = models.find(model_name) orelse {
-        log.err("Unknown model '{s}'. Supported models:", .{model_name});
-        for (models.models) |m| log.err("  {s}", .{m.name});
-        std.posix.exit(1);
+    // Look up the model in the static table first. If not found, use a
+    // labeled block ("blk:") to probe the runner for the embedding dimensions.
+    // In Zig, a labeled block is an expression that can produce a value via
+    // "break :label value" — similar to an immediately-invoked closure in Go
+    // that returns a result, except it shares the surrounding scope.
+    const mod = models.find(model_name) orelse blk: {
+        // Model not in static list — probe the runner for dimensions.
+        const embedding = runner_mod.getEmbedding(allocator, .{
+            .text = "probe",
+            .model_name = model_name,
+            .runner = runner,
+        }) catch {
+            log.err("Unknown model '{s}' and probe failed. Known models:", .{model_name});
+            for (models.models) |m| log.err("  {s}", .{m.name});
+            std.posix.exit(1);
+        };
+        defer allocator.free(embedding);
+        log.debug("probed '{s}': {d} dims", .{ model_name, embedding.len });
+
+        // "break :blk value" exits this block and produces the Model value
+        // that gets assigned to `mod`.
+        break :blk Model{
+            .name = model_name,
+            .dims = @intCast(embedding.len),
+        };
     };
 
     return .{
@@ -154,7 +177,10 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         .username = try allocator.dupe(u8, username),
         .password = try allocator.dupe(u8, password),
         .database = try allocator.dupe(u8, database),
-        .model = mod,
+        .model = .{
+            .name = try allocator.dupe(u8, mod.name),
+            .dims = mod.dims,
+        },
         .path = try allocator.dupe(u8, path),
         .query = if (query.len > 0) try allocator.dupe(u8, query) else "",
         .git = git,
