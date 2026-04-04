@@ -106,7 +106,9 @@ fn getDockerEmbedding(allocator: std.mem.Allocator, opts: Opts) ![]f64 {
         return error.RunnerRequestFailed;
     }
 
-    const managed = try res.json(OpenAIEmbeddingResponse, allocator, .{});
+    const managed = try res.json(OpenAIEmbeddingResponse, allocator, .{
+        .ignore_unknown_fields = true,
+    });
     defer managed.deinit();
 
     if (managed.value.data.len == 0) {
