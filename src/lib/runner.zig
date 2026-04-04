@@ -20,8 +20,8 @@ const OpenAIEmbeddingResponse = struct {
 
 pub const Opts = struct {
     text: []const u8,
-    model_name: []const u8 = "nomic-embed-text",
-    runner: Runner = Runner.ollama,
+    model_name: []const u8 = "ai/nomic-embed-text-v1.5",
+    runner: Runner = Runner.docker,
 };
 
 /// Calls the configured model runner's embeddings endpoint and returns the
