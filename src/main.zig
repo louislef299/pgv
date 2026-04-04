@@ -41,7 +41,7 @@ pub fn main() !void {
         .connect = .{ .host = f.target, .port = 5432 },
         .auth = .{ .username = f.username, .password = f.password, .database = f.database },
     }) catch |err| {
-        lib.log.err("Failed to connect to {s}: {}", .{ f.target, err });
+        lib.log.err("Failed to connect to {s}(is the db running?): {}", .{ f.target, err });
         std.posix.exit(1);
     };
     defer pool.deinit();

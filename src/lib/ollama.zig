@@ -27,13 +27,19 @@ pub fn getEmbedding(
     var client = zul.http.Client.init(allocator);
     defer client.deinit();
 
-    var req = try client.request("http://localhost:11434/api/embeddings");
+    var req = client.request("http://localhost:11434/api/embeddings") catch |err| {
+        log.err("Failed to connect to Ollama: {}", .{err});
+        std.posix.exit(1);
+    };
     defer req.deinit();
     req.method = .POST;
     try req.header("Content-Type", "application/json");
     req.body(body);
 
-    var res = try req.getResponse(.{});
+    var res = req.getResponse(.{}) catch |err| {
+        log.err("Failed to Get response from Ollama: {}", .{err});
+        std.posix.exit(1);
+    };
     if (res.status != 200) {
         log.err("Ollama request failed with status {d}", .{res.status});
         return error.OllamaRequestFailed;
