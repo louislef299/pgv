@@ -6,7 +6,7 @@ pub const Model = struct {
     dims: u16,
 };
 
-/// Known Ollama embedding models.
+/// Known embedding models.
 pub const models = [_]Model{
     .{ .name = "nomic-embed-text", .dims = 768 },
     .{ .name = "mxbai-embed-large", .dims = 1024 },

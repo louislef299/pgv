@@ -2,7 +2,7 @@ const std = @import("std");
 const pg = @import("pg");
 
 const log = @import("../lib/log.zig").log;
-const ollama = @import("../lib/ollama.zig");
+const runner = @import("../lib/runner.zig");
 const pgvector = @import("../lib/pgvector.zig");
 const Flags = @import("Flags.zig");
 
@@ -14,8 +14,12 @@ pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
 
     std.debug.print("querying: \"{s}\"\n\n", .{f.query});
 
-    // Embed the query text via Ollama.
-    const embedding = try ollama.getEmbedding(allocator, f.model.name, f.query);
+    // Embed the query text via the model runner.
+    const embedding = try runner.getEmbedding(allocator, .{
+        .model_name = f.model.name,
+        .text = f.query,
+        .runner = f.runner,
+    });
     defer allocator.free(embedding);
 
     // Format as pgvector-compatible string.

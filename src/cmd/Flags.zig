@@ -13,6 +13,11 @@ pub const IshiCmd = enum {
     query,
 };
 
+pub const Runner = enum {
+    docker,
+    ollama,
+};
+
 cmd: IshiCmd,
 target: []const u8,
 username: []const u8,
@@ -23,6 +28,7 @@ path: []const u8,
 query: []const u8,
 git: bool,
 limit: usize,
+runner: Runner,
 allocator: std.mem.Allocator,
 
 pub fn deinit(self: Flags) void {
@@ -54,6 +60,7 @@ pub const usage =
     \\  --path        path to the JSON seed file (default: ./seed.json)
     \\  --git         seed from git commit history instead of JSON
     \\  --limit       max commits to ingest with --git (default: 50)
+    \\  --runner      local model runner to use (default: ollama)
 ;
 
 pub fn init(allocator: std.mem.Allocator) !Flags {
@@ -85,6 +92,7 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
     var query: []const u8 = "";
     var git = false;
     var limit: usize = 50;
+    var runner: Runner = Runner.ollama;
 
     var i: usize = 2;
     while (i < args.len) : (i += 1) {
@@ -120,6 +128,14 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
                     std.posix.exit(1);
                 };
             }
+        } else if (std.mem.eql(u8, arg, "--runner")) {
+            i += 1;
+            if (i < args.len) {
+                runner = std.meta.stringToEnum(Runner, args[i]) orelse {
+                    log.err("Unknown runner '{s}'. Supported: docker, ollama", .{args[i]});
+                    std.posix.exit(1);
+                };
+            }
         } else {
             // Positional arg (e.g. query string)
             query = arg;
@@ -144,6 +160,7 @@ pub fn init(allocator: std.mem.Allocator) !Flags {
         .git = git,
         .limit = limit,
         .allocator = allocator,
+        .runner = runner,
     };
 }
 

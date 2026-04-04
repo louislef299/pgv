@@ -3,7 +3,7 @@ const pg = @import("pg");
 
 const log = @import("../lib/log.zig").log;
 const git = @import("../lib/git.zig");
-const ollama = @import("../lib/ollama.zig");
+const runner = @import("../lib/runner.zig");
 const pgvector = @import("../lib/pgvector.zig");
 const Flags = @import("Flags.zig");
 
@@ -49,7 +49,11 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         const content = try std.fmt.allocPrint(allocator, "{s}\n\n{s}", .{ ci.message, patch });
         defer allocator.free(content);
 
-        const embedding = ollama.getEmbedding(allocator, f.model.name, content) catch |err| {
+        const embedding = runner.getEmbedding(allocator, .{
+            .model_name = f.model.name,
+            .text = content,
+            .runner = f.runner,
+        }) catch |err| {
             log.warn("skipping {s}: {}", .{ sha_str, err });
             continue;
         };
@@ -91,8 +95,12 @@ fn seedFromJson(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     for (parsed.value) |entry| {
         std.debug.print("embedding '{s}'...\n", .{entry.id});
 
-        // Call Ollama to generate the embedding vector.
-        const embedding = try ollama.getEmbedding(allocator, f.model.name, entry.text);
+        // Call the model runner to generate the embedding vector.
+        const embedding = try runner.getEmbedding(allocator, .{
+            .model_name = f.model.name,
+            .text = entry.text,
+            .runner = f.runner,
+        });
         defer allocator.free(embedding);
 
         // Format as a pgvector-compatible text string: "[0.1,0.2,...]"
