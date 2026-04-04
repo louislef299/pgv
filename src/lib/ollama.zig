@@ -27,9 +27,10 @@ pub fn getEmbedding(
     var client = zul.http.Client.init(allocator);
     defer client.deinit();
 
-    var req = client.request("http://localhost:11434/api/embeddings") catch |err| {
-        log.err("Failed to connect to Ollama: {}", .{err});
-        std.posix.exit(1);
+    const endpoint: []const u8 = "http://localhost:11434/api/embeddings";
+    var req = client.request(endpoint) catch |err| {
+        log.err("Failed to build embedding POST request: {}", .{err});
+        return err;
     };
     defer req.deinit();
     req.method = .POST;
@@ -37,8 +38,8 @@ pub fn getEmbedding(
     req.body(body);
 
     var res = req.getResponse(.{}) catch |err| {
-        log.err("Failed to Get response from Ollama: {}", .{err});
-        std.posix.exit(1);
+        log.err("Failed to POST to {s}: {}", .{ endpoint, err });
+        return err;
     };
     if (res.status != 200) {
         log.err("Ollama request failed with status {d}", .{res.status});
