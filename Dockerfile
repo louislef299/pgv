@@ -3,10 +3,12 @@
 FROM alpine:edge
 
 RUN apk add --no-cache build-base \
-    zig libgit2
+    zig libgit2-dev
 
 WORKDIR /app
 COPY . .
 RUN zig build
 
-CMD ["/app/zig-out/bin/rmt"]
+CMD [ "/app/zig-out/bin/ishi", "init", \
+    "--target", "vdb", "--git", \
+    "--limit", "100" ]

@@ -1,6 +1,6 @@
 ---
 services:
-  db:
+  vdb:
     container_name: vdb
     image: pgvector/pgvector:pg18-trixie
     restart: always
@@ -8,11 +8,25 @@ services:
     environment:
       POSTGRES_PASSWORD: ishi
     volumes:
-    - pgv:/var/lib/postgresql
+      - pgv:/var/lib/postgresql
     ports:
-    - 5432:5432
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     models:
-    - embedding-model
+      - embedding-model
+
+  ishi:
+    container_name: ishi
+    build: .
+    depends_on:
+      vdb:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:ishi@db:5432/postgres
 
 models:
   embedding-model:

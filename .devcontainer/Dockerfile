@@ -3,6 +3,6 @@
 FROM alpine:3.23.3
 
 RUN apk -U upgrade && \
-    apk add --no-cache build-base zig libgit2
+    apk add --no-cache build-base zig libgit2-dev
 
 CMD ["zsh"]
