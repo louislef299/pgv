@@ -1,0 +1,6 @@
+{
+  "name": "ishi",
+  "build": {
+    "dockerfile": "./Dockerfile",
+  },
+}
