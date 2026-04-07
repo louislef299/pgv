@@ -8,6 +8,9 @@
     }
   },
   "permission": {
+    "external_directory": {
+      "~/.cache/zig/**": "allow"
+    },
     "bash": {
       "brew install *": "deny",
       "brew *": "ask",
