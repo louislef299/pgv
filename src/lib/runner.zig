@@ -3,6 +3,7 @@ const zul = @import("zul");
 
 const Runner = @import("../cmd/Flags.zig").Runner;
 const log = @import("log.zig").log;
+const retry = @import("retry.zig");
 
 /// Ollama /api/embeddings response: { "embedding": [...] }
 const OllamaEmbeddingResponse = struct {
@@ -24,16 +25,33 @@ pub const Opts = struct {
     runner: Runner = Runner.docker,
 };
 
+/// Captures the arguments needed by a single embedding attempt so the
+/// function can be passed to `retry.retry` which takes `fn(Context) !T`.
+const EmbeddingContext = struct {
+    allocator: std.mem.Allocator,
+    opts: Opts,
+};
+
 /// Calls the configured model runner's embeddings endpoint and returns the
-/// raw embedding vector. Caller owns the returned slice.
+/// raw embedding vector, retrying with exponential backoff on transient
+/// failures. Caller owns the returned slice.
 pub fn getEmbedding(
     allocator: std.mem.Allocator,
     opts: Opts,
 ) ![]f64 {
+    const ctx = EmbeddingContext{ .allocator = allocator, .opts = opts };
     return switch (opts.runner) {
-        .ollama => getOllamaEmbedding(allocator, opts),
-        .docker => getDockerEmbedding(allocator, opts),
+        .ollama => retry.retry([]f64, .{}, ctx, attemptOllamaEmbedding),
+        .docker => retry.retry([]f64, .{}, ctx, attemptDockerEmbedding),
     };
+}
+
+fn attemptOllamaEmbedding(ctx: EmbeddingContext) anyerror![]f64 {
+    return getOllamaEmbedding(ctx.allocator, ctx.opts);
+}
+
+fn attemptDockerEmbedding(ctx: EmbeddingContext) anyerror![]f64 {
+    return getDockerEmbedding(ctx.allocator, ctx.opts);
 }
 
 fn getOllamaEmbedding(allocator: std.mem.Allocator, opts: Opts) ![]f64 {
