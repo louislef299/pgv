@@ -4,7 +4,7 @@ const log = @import("log.zig").log;
 /// Configuration for retry behavior with exponential backoff.
 pub const Config = struct {
     /// Maximum number of attempts (including the initial call).
-    max_retries: u4 = 3,
+    max_retries: u4 = 5,
 
     /// Initial backoff duration in milliseconds before the first retry.
     initial_backoff_ms: u64 = 500,

@@ -43,11 +43,17 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         std.debug.print("embedding {s}...\n", .{sha_str});
 
         // Combine commit message and diff patch for embedding.
-        // Truncate to 8192 bytes to stay within the embedding model's context window.
-        const max_embed_len: usize = 8192;
-        const patch = ci.diff_patch[0..@min(ci.diff_patch.len, max_embed_len -| ci.message.len -| 2)];
-        const content = try std.fmt.allocPrint(allocator, "{s}\n\n{s}", .{ ci.message, patch });
-        defer allocator.free(content);
+        // Truncate final content to ~1024 bytes to stay within llama.cpp's
+        // default 512-token physical batch size (~4 bytes/token for nomic-embed-text).
+        const max_embed_len: usize = 1024;
+
+        // Metadata + message overhead is ~200-300 bytes, so cap the patch early.
+        const patch = ci.diff_patch[0..@min(ci.diff_patch.len, max_embed_len)];
+        const full_content = try ci.format(allocator, patch);
+        defer allocator.free(full_content);
+
+        const content = full_content[0..@min(full_content.len, max_embed_len)];
+        std.debug.print("Git Embedding:\t{s}\n", .{content});
 
         const embedding = runner.getEmbedding(allocator, .{
             .model_name = f.model.name,

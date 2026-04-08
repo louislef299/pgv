@@ -27,6 +27,59 @@ pub const CommitInfo = struct {
         self.allocator.free(self.message);
         self.allocator.free(self.diff_patch);
     }
+
+    /// Formats commit metadata, message, and diff patch into a single
+    /// string suitable for embedding.
+    pub fn format(
+        self: *const CommitInfo,
+        allocator: std.mem.Allocator,
+        patch: []const u8,
+    ) ![]u8 {
+        const epoch_secs = std.time.epoch.EpochSeconds{ .secs = @intCast(self.author_date) };
+        const epoch_day = epoch_secs.getEpochDay();
+        const year_day = epoch_day.calculateYearDay();
+        const month_day = year_day.calculateMonthDay();
+        const day_secs = epoch_secs.getDaySeconds();
+
+        const date_str = try std.fmt.allocPrint(allocator, "{d}-{d:0>2}-{d:0>2} {d:0>2}:{d:0>2}:{d:0>2}", .{
+            year_day.year,
+            @intFromEnum(month_day.month),
+            month_day.day_index + 1,
+            day_secs.getHoursIntoDay(),
+            day_secs.getMinutesIntoHour(),
+            day_secs.getSecondsIntoMinute(),
+        });
+        defer allocator.free(date_str);
+
+        // ci.sha, ci.author_name, ci.author_email, ci.author_date (formatted),
+        // ci.files_changed, ci.insertions, ci.deletions
+        const commitFmt =
+            \\{s} {s} {s} {s}
+            \\Files Changed: {d}
+            \\Insertions: {d}
+            \\Deletions: {d}
+            \\
+            \\{s}
+            \\{s}
+        ;
+
+        return try std.fmt.allocPrint(
+            allocator,
+            commitFmt,
+            .{
+                self.sha,
+                self.author_name,
+                self.author_email,
+                date_str,
+                self.files_changed,
+                self.insertions,
+                self.deletions,
+
+                self.message,
+                patch,
+            },
+        );
+    }
 };
 
 /// Helper to convert a libgit2 error code into a Zig error.

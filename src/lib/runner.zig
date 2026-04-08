@@ -82,7 +82,16 @@ fn getOllamaEmbedding(allocator: std.mem.Allocator, opts: Opts) ![]f64 {
     };
 
     if (res.status != 200) {
-        log.err("ollama request to {s} failed with status {d}", .{ endpoint, res.status });
+        const err_body = res.allocBody(allocator, .{ .max_size = 4096 }) catch |err| {
+            log.err("ollama request to {s} failed with status {d} (could not read body: {})", .{ endpoint, res.status, err });
+            return error.RunnerRequestFailed;
+        };
+        defer err_body.deinit();
+        log.err("ollama request to {s} failed with status {d}: {s}", .{
+            endpoint,
+            res.status,
+            err_body.string(),
+        });
         return error.RunnerRequestFailed;
     }
 
@@ -120,7 +129,16 @@ fn getDockerEmbedding(allocator: std.mem.Allocator, opts: Opts) ![]f64 {
     };
 
     if (res.status != 200) {
-        log.err("docker request to {s} failed with status {d}", .{ endpoint, res.status });
+        const err_body = res.allocBody(allocator, .{ .max_size = 4096 }) catch |err| {
+            log.err("docker request to {s} failed with status {d} (could not read body: {})", .{ endpoint, res.status, err });
+            return error.RunnerRequestFailed;
+        };
+        defer err_body.deinit();
+        log.err("docker request to {s} failed with status {d}: {s}", .{
+            endpoint,
+            res.status,
+            err_body.string(),
+        });
         return error.RunnerRequestFailed;
     }
 
