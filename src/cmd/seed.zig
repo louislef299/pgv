@@ -23,7 +23,7 @@ pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
 }
 
 fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
-    std.debug.print("Walking up to {d} commits...\n", .{f.limit});
+    log.info("Walking up to {d} commits...", .{f.limit});
 
     const commits = git.walkCommits(allocator, ".", f.limit) catch |err| {
         log.err("Failed to walk git history: {}", .{err});
@@ -36,11 +36,11 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         allocator.free(commits);
     }
 
-    std.debug.print("Found {d} commits, seeding...\n", .{commits.len});
+    log.info("Found {d} commits, seeding...", .{commits.len});
 
     for (commits) |ci| {
         const sha_str = &ci.sha;
-        std.debug.print("embedding {s}...\n", .{sha_str});
+        log.info("embedding {s}...", .{sha_str});
 
         // Combine commit message and diff patch for embedding.
         // Truncate final content to ~1024 bytes to stay within llama.cpp's
@@ -53,7 +53,7 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         defer allocator.free(full_content);
 
         const content = full_content[0..@min(full_content.len, max_embed_len)];
-        std.debug.print("Git Embedding:\t{s}\n", .{content});
+        log.debug("Git Embedding:\t{s}", .{content});
 
         const embedding = runner.getEmbedding(allocator, .{
             .model_name = f.model.name,
@@ -74,7 +74,7 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
             "INSERT INTO items (sha, content, embedding, author_name, author_email, commit_date, files_changed, insertions, deletions) VALUES ($1, $2, $3::vector, $4, $5, $6, $7, $8, $9) ON CONFLICT (sha) DO NOTHING",
             .{ sha_str, content, vec_str, ci.author_name, ci.author_email, commit_date_us, ci.files_changed, ci.insertions, ci.deletions },
         );
-        std.debug.print("  seeded {s}\n", .{sha_str});
+        log.info("  seeded {s}", .{sha_str});
     }
 }
 
@@ -101,7 +101,7 @@ fn seedFromJson(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     defer parsed.deinit();
 
     for (parsed.value) |entry| {
-        std.debug.print("embedding '{s}'...\n", .{entry.id});
+        log.info("embedding '{s}'...", .{entry.id});
 
         // Call the model runner to generate the embedding vector.
         const embedding = try runner.getEmbedding(allocator, .{
@@ -119,6 +119,6 @@ fn seedFromJson(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
             "INSERT INTO items (content, embedding) VALUES ($1, $2::vector)",
             .{ entry.text, vec_str },
         );
-        std.debug.print("  seeded '{s}'\n", .{entry.id});
+        log.info("  seeded '{s}'", .{entry.id});
     }
 }

@@ -28,6 +28,10 @@ test {
     _ = git;
 }
 
+pub const std_options: std.Options = .{
+    .log_level = .info,
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
