@@ -30,8 +30,14 @@ jobs:
     - name: Create model
       run: ollama create ishi -f Modelfile
 
+    - name: Log in to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Push model to GHCR
       run: |
-        echo "${{ secrets.GITHUB_TOKEN }}" | ollama login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
         ollama cp ishi "$REGISTRY/$IMAGE_NAME"
         ollama push "$REGISTRY/$IMAGE_NAME"
