@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = @import("log.zig").log;
+pub const log = std.log.scoped(.log);
 
 /// Configuration for retry behavior with exponential backoff.
 pub const Config = struct {

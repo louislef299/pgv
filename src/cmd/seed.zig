@@ -1,7 +1,7 @@
 const std = @import("std");
 const pg = @import("pg");
 
-const log = @import("../lib/log.zig").log;
+pub const log = std.log.scoped(.seed);
 const git = @import("../lib/git.zig");
 const runner = @import("../lib/runner.zig");
 const pgvector = @import("../lib/pgvector.zig");

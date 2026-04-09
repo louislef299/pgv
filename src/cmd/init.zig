@@ -1,7 +1,7 @@
 const std = @import("std");
 const pg = @import("pg");
 
-const log = @import("../lib/log.zig").log;
+pub const log = std.log.scoped(.init);
 const models = @import("../lib/models.zig");
 
 const Flags = @import("./Flags.zig");

@@ -18,7 +18,7 @@ const pg = @import("pg");
 const Flags = @import("./cmd/Flags.zig");
 const git = @import("lib/git.zig");
 const init_cmd = @import("cmd/init.zig");
-const log = @import("lib/log.zig").log;
+pub const log = std.log.scoped(.ishi);
 const query_cmd = @import("cmd/query.zig");
 const seed_cmd = @import("cmd/seed.zig");
 

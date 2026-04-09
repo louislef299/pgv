@@ -1,7 +1,7 @@
 // Flags defines all CLI flags shared across commands.
 const std = @import("std");
 
-const log = @import("../lib/log.zig").log;
+pub const log = std.log.scoped(.Flags);
 const models = @import("../lib/models.zig");
 const Model = @import("../lib/models.zig").Model;
 const runner_mod = @import("../lib/runner.zig");

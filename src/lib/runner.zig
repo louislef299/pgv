@@ -2,7 +2,7 @@ const std = @import("std");
 const zul = @import("zul");
 
 const Runner = @import("../cmd/Flags.zig").Runner;
-const log = @import("log.zig").log;
+pub const log = std.log.scoped(.runner);
 const retry = @import("retry.zig");
 
 /// Ollama /api/embeddings response: { "embedding": [...] }
