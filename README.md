@@ -44,8 +44,10 @@ ollama pull nomic-embed-text
 
 ishi also ships with a [Modelfile][] that creates a local LLM tuned for
 answering questions about your codebase using context from the vector database.
+You can pull the Modelfile from GHCR with [ORAS][] or use the one in the repo:
 
 ```sh
+oras pull ghcr.io/louislef299/ishi:latest
 ollama create ishi -f ./Modelfile
 ollama run ishi
 ```
@@ -61,3 +63,4 @@ ollama run ishi
 [`brew`]: http://louislefebvre.net/tech/brew-tips/#reproducibility-with-brewfile
 [Model Runner]: https://docs.docker.com/desktop/features/model-runner/
 [Modelfile]: https://docs.ollama.com/modelfile
+[ORAS]: https://oras.land/
