@@ -13,7 +13,7 @@ const SeedEntry = struct {
 };
 
 pub fn run(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
-    if (f.git) {
+    if (f.jsonpath.len == 0) {
         log.debug("seeding from git...", .{});
         try seedFromGit(allocator, pool, f);
     } else {
@@ -82,10 +82,10 @@ fn seedFromJson(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     // Read the seed file from disk.
     const seed_data = std.fs.cwd().readFileAlloc(
         allocator,
-        f.path,
+        f.jsonpath,
         1024 * 1024,
     ) catch |err| {
-        log.err("Failed to read '{s}': {}", .{ f.path, err });
+        log.err("Failed to read '{s}': {}", .{ f.jsonpath, err });
         std.posix.exit(1);
     };
     defer allocator.free(seed_data);
