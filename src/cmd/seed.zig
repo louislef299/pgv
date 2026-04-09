@@ -69,8 +69,8 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         defer allocator.free(vec_str);
 
         _ = try pool.exec(
-            "INSERT INTO items (content, embedding) VALUES ($1, $2::vector)",
-            .{ content, vec_str },
+            "INSERT INTO items (sha, content, embedding) VALUES ($1, $2, $3::vector) ON CONFLICT (sha) DO NOTHING",
+            .{ sha_str, content, vec_str },
         );
         std.debug.print("  seeded {s}\n", .{sha_str});
     }
