@@ -13,7 +13,7 @@ pub fn run(_: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
     var buf: [512]u8 = undefined;
     const create_table = try std.fmt.bufPrint(
         &buf,
-        "CREATE TABLE IF NOT EXISTS items (id bigserial PRIMARY KEY, sha TEXT UNIQUE, content text, embedding vector({d}));",
+        "CREATE TABLE IF NOT EXISTS items (id bigserial PRIMARY KEY, sha TEXT UNIQUE, content text, embedding vector({d}), author_name TEXT, author_email TEXT, commit_date TIMESTAMPTZ, files_changed INT, insertions INT, deletions INT);",
         .{f.model.dims},
     );
     _ = try pool.exec(create_table, .{});

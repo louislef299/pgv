@@ -68,9 +68,11 @@ fn seedFromGit(allocator: std.mem.Allocator, pool: *pg.Pool, f: Flags) !void {
         const vec_str = try pgvector.formatVector(allocator, embedding);
         defer allocator.free(vec_str);
 
+        // pg.zig Timestamp expects microseconds; libgit2 gives seconds.
+        const commit_date_us = ci.author_date * 1_000_000;
         _ = try pool.exec(
-            "INSERT INTO items (sha, content, embedding) VALUES ($1, $2, $3::vector) ON CONFLICT (sha) DO NOTHING",
-            .{ sha_str, content, vec_str },
+            "INSERT INTO items (sha, content, embedding, author_name, author_email, commit_date, files_changed, insertions, deletions) VALUES ($1, $2, $3::vector, $4, $5, $6, $7, $8, $9) ON CONFLICT (sha) DO NOTHING",
+            .{ sha_str, content, vec_str, ci.author_name, ci.author_email, commit_date_us, ci.files_changed, ci.insertions, ci.deletions },
         );
         std.debug.print("  seeded {s}\n", .{sha_str});
     }
