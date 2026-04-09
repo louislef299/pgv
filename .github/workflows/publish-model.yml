@@ -1,0 +1,37 @@
+---
+name: Publish Ollama Model
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/ishi
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install Ollama
+      run: curl -fsSL https://ollama.com/install.sh | sh
+
+    - name: Start Ollama server
+      run: |
+        ollama serve &
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:11434/api/tags >/dev/null 2>&1 && break
+          sleep 1
+        done
+
+    - name: Create model
+      run: ollama create ishi -f Modelfile
+
+    - name: Push model to GHCR
+      run: |
+        echo "${{ secrets.GITHUB_TOKEN }}" | ollama login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
+        ollama cp ishi "$REGISTRY/$IMAGE_NAME"
+        ollama push "$REGISTRY/$IMAGE_NAME"
